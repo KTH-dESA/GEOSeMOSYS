@@ -2,91 +2,62 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 
+def operational_life(df, outPutFile, region, life):
+    ############################################################
+    ### OperationalLife (Region, Technology,operationallife)
+    #############################################################
 
-def operational_life(df, elec, outPutFile):
     dataToInsert = ""
     print("Operational life", datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
     param = "param OperationalLife default 1 :=\n"
     startIndex = outPutFile.index(param) + len(param)
 
-    for m, row in df.iterrows():
-        objectId = row['OBJECTID *']
-        count = 1
+    for i, row in df.iterrows():
+        location = row['Location']
+        for m, line in life.iterrows():
+            t = line['Technology']
+            l = line['Life']
 
-        # if electrified PV
-        if objectId in elec.values:
-            pvoperationallife = float(row['OperationalLifePV'])
-            dataToInsert += "Kenya  SOPV_%i_1\t%i\n" % (objectId, pvoperationallife)
-
-            pv4hoperationallife = float(row['OperationalLifePV4h'])
-            dataToInsert += "Kenya  SOPV12h_%i_1\t%i\n" % (objectId, pv4hoperationallife)
-
-            pv8hoperationallife = float(row['OperationalLifePV8h'])
-            dataToInsert += "Kenya  SOPV8h_%i_1\t%i\n" % (objectId, pv8hoperationallife)
-
-        somgoperationallife = float(row['OperationalLifeSOMG'])
-        dataToInsert += "Kenya  SOMG_%i\t%i\n" % (objectId, somgoperationallife)
-
-        somgoperationallife = float(row['OperationalLifeSOMG'])
-        dataToInsert += "Kenya  SOMG12h_%i\t%i\n" % (objectId, somgoperationallife)
-
-        windoperationallife = float(row['OperationalLifeWind'])
-        # \t gives tab
-        dataToInsert += "Kenya  WI_%i\t%i\n" % (objectId, windoperationallife)
-
-        pvoperationallife = float(row['OperationalLifePV'])
-        dataToInsert += "Kenya  SOPV_%i_0\t%i\n" % (objectId, pvoperationallife)
-
-        pv4hoperationallife = float(row['OperationalLifePV4h'])
-        dataToInsert += "Kenya  SOPV12h_%i_0\t%i\n" % (objectId, pv4hoperationallife)
-
-        pv8hoperationallife = float(row['OperationalLifePV8h'])
-        dataToInsert += "Kenya  SOPV8h_%i_0\t%i\n" % (objectId, pv8hoperationallife)
-
-    life = pd.read_excel('Kenya_data_input_ALL.xlsx', 'operational_life')
-
-    for m, row in life.iterrows():
-        t = row['Technology']
-        l = row['Life']
-
-        dataToInsert += "Kenya  %s\t%i\n" % (t, l)
+            dataToInsert += "%s  %s_%i\t%i\n" % (region,t, location, l)
 
         cnt = 1
-
+    cnt = 1
     outPutFile = outPutFile[:startIndex] + dataToInsert + outPutFile[startIndex:]
     return(outPutFile)
 
-def emissionactivity(df, outPutFile, startyear, endyear):
-    ###############################################################
-    #Emission activity (Region,Technology,Emissiontype,Year,Emission)
-    ################################################################
+def emissionactivity(df, outPutFile, startyear, endyear,region, emissions, modeofoperation):
+    ###################################################################################
+    #Emission activity (Region,Technology,Emissiontype,Modeofoperation, Year,Emission)
+    ###################################################################################
     print("Emission activity", datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
     dataToInsert = ""
-
     param = "param EmissionActivityRatio default 0 :=\n"
     startIndex = outPutFile.index(param) + len(param)
-
+    emission = np.array([matrix.to_numpy() for _, matrix in emissions.groupby('Technology')])
+    print(emission)
+    cnt = 1
     for i, row in df.iterrows():
-       objectId = row['OBJECTID *']
-       count = 1
-
+       location = row['Location']
        year = startyear
-       while year <= endyear:
-          CO2 = 0.000069427604
-          #\t gives tab
-          dataToInsert += "Kenya  KEDSGEN_%i\tCO2\t1\t%i\t%f\n" % (objectId, year, CO2)
-          year += 1
-       year2 = startyear
-       while year2 <= endyear:
-          NOX = 5.687e-10
-          dataToInsert += ("Kenya  KEDSGEN_%i\tNOX\t1\t%i\t%f\n" % (objectId, year2, NOX))
-          year2 = year2 + 1
-       year2 = startyear
-
+       count = 1
+       for m, line in emission.iterrows():
+           while year <= endyear:
+               t = line['Technology']
+               CO2 = line['CO2']
+               NOx = line['NOX']
+               i=0
+               while i < len(modeofoperation):
+                   k = line['modeofoperation']
+                   dataToInsert += "%s  %s_%i\tCO2\t%i\t%i\t%f\n" % (region, t, location, k, year, CO2)
+                   dataToInsert += "%s  %s_%i\tNOX\t%i\t%i\t%f\n" % (region, t, location, k, year, NOx)
+                   i+=1
+               year += 1
+       count += 1
+    cnt += 1
     outPutFile = outPutFile[:startIndex] + dataToInsert + outPutFile[startIndex:]
     return (outPutFile)
 
-def variablecost(outPutFile, df, elec, startyear, endyear):
+def variblecost(df, outPutFile, startyear, endyear, region, variable_cost, modeofoperation):
     ###############################################################
     #Variable cost (Region,Technology,ModeofOperation,Year,Variablecost)
     ################################################################
@@ -95,69 +66,52 @@ def variablecost(outPutFile, df, elec, startyear, endyear):
     dataToInsert = ""
     param = "param VariableCost default 0 :=\n"
     startIndex = outPutFile.index(param) + len(param)
-
+    cnt = 1
     for i, row in df.iterrows():
-       objectId = row['OBJECTID *']
-       count = 1
-       #if electrified PV
-       if objectId in elec.values:
-          year2 = startyear
-          while year2 <= endyear:
-             pvvariablecost = float(row['VariableCostPV'])
-             dataToInsert += ("Kenya  SOPV_%i_1\t1\t%i\t%f\n" % (objectId, year2, pvvariablecost))
-             year2 = year2 + 1
-          year2 = startyear
-          while year2 <= endyear:
-             pvvariablecost = float(row['VariableCostPV4h'])
-             dataToInsert += ("Kenya  SOPV12h_%i_1\t1\t%i\t%f\n" % (objectId, year2, pvvariablecost))
-             year2 = year2 + 1
-          year2 = startyear
-          while year2 <= endyear:
-             pvvariablecost = float(row['VariableCostPV8h'])
-             dataToInsert += ("Kenya  SOPV8h_%i_1\t1\t%i\t%f\n" % (objectId, year2, pvvariablecost))
-             year2 = year2 + 1
+       location = row['Location']
        year = startyear
-       # add for each year for one technology, total energy avaliable in each cell
-       while year <= endyear:
-          windvariablecost = float(row['VariableCostWind'])
-          #\t gives tab
-          dataToInsert += "Kenya  WI_%i\t1\t%i\t%f\n" % (objectId, year, windvariablecost)
-          year += 1
-       year2 = startyear
-       while year2 <= endyear:
-          pvvariablecost = float(row['VariableCostPV'])
-          dataToInsert += ("Kenya  SOPV_%i_0\t1\t%i\t%f\n" % (objectId, year2, pvvariablecost))
-          year2 = year2 + 1
-       year2 = startyear
-       while year2 <= endyear:
-          pvvariablecost = float(row['VariableCostPV4h'])
-          dataToInsert += ("Kenya  SOPV12h_%i_0\t1\t%i\t%f\n" % (objectId, year2, pvvariablecost))
-          year2 = year2 + 1
-       year3 = startyear
-       year2 = startyear
-       while year2 <= endyear:
-          pvvariablecost = float(row['VariableCostPV8h'])
-          dataToInsert += ("Kenya  SOPV8h_%i_0\t1\t%i\t%f\n" % (objectId, year2, pvvariablecost))
-          year2 = year2 + 1
-       year3 = startyear
-       while year3 <= endyear:
-          soMGvariablecost = float(row['VariableCostSOMG'])
-          dataToInsert += ("Kenya  SOMG_%i\t1\t%i\t%f\n" % (objectId, year3, soMGvariablecost))
-          year3 = year3 + 1
-       while year3 <= endyear:
-          soMGvariablecost = float(row['VariableCostSOMG'])
-          dataToInsert += ("Kenya  SOMG12h_%i\t1\t%i\t%f\n" % (objectId, year3, soMGvariablecost))
-          year3 = year3 + 1
-       while year3 <= endyear:
-          diesel = float(row['Diesel_transport'])
-          dataToInsert += ("Kenya  KEDSGEN_%i\t1\t%i\t%f\n" % (objectId, year3, diesel))
-          year3 = year3 + 1
+       count = 1
+       for m, line in variable_cost.iterrows():
+           while year <= endyear:
+               t = line['Technology']
+               vc = line['Variable Cost']
+               i=0
+               while i < len(modeofoperation):
+                   k = modeofoperation[i]
+                   dataToInsert += "%s  %s_%i\t%i\t%i\t%f\n" % (region, t, location, k, year, vc)
+                   i+=1
+               year += 1
+       count += 1
+    cnt += 1
+    outPutFile = outPutFile[:startIndex] + dataToInsert + outPutFile[startIndex:]
+    return(outPutFile)
+
+def fixedcost(df, outPutFile, startyear, endyear, region, fixed_cost):
+    ###############################################################
+    #Variable cost (Region,Technology,ModeofOperation,Year,Variablecost)
+    ################################################################
+    print("Fixed cost", datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+    dataToInsert = ""
+    param = "param FixedCost default 0 :=\n"
+    startIndex = outPutFile.index(param) + len(param)
+    cnt = 1
+    for i, row in df.iterrows():
+       location = row['Location']
+       year = startyear
+       count = 1
+       for m, line in fixed_cost.iterrows():
+           while year <= endyear:
+               t = line['Technology']
+               fc = line['Fixed Cost']
+               dataToInsert += "%s  %s_%i\t%i\t%f\n" % (region, t, location, year, fc)
+               year += 1
+       count += 1
+    cnt += 1
 
     outPutFile = outPutFile[:startIndex] + dataToInsert + outPutFile[startIndex:]
     return(outPutFile)
 
-def totaltechnologyannualactivityupperlimit(df,outPutFile, startyear, endyear):
-    #reset
+def totaltechnologyannualactivityupperlimit(df,outPutFile, startyear, endyear,region,totalannuallimit):
     dataToInsert = ""
     #################################################################################
     #TotalTechnologyAnnualActivityUpperLimit (Region,technology,year,totaltechnologyupperlimit)
@@ -165,32 +119,24 @@ def totaltechnologyannualactivityupperlimit(df,outPutFile, startyear, endyear):
     print("TotalTechnologyAnnualActivityUpperLimit", datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
     param = "param TotalTechnologyAnnualActivityUpperLimit default 99999999999 :=\n"
     startIndex = outPutFile.index(param) + len(param)
+
     for index, row in df.iterrows():
-       objectId = row['OBJECTID *']
-       cnt = 1
+       location = row['Location']
        year = startyear
        while year <= endyear:
-          windcf2 = float(row['WindCF'])
-          #convert kWh  to PJ for the 40x40 cell
-          windcf=windcf2*8760*600*10**(-9)*3.6*40*40*10**6*0.1
-          dataToInsert += "Kenya  WI_%i\t%i\t%f\n" % (objectId, year, windcf)
-          year = year + 1
-       year=startyear
-       while year <= endyear:
-          ghi2 = float(row['GHI'])
-          #convert kWh to PJ for the 40x40 cell
-          ghi=ghi2*8760*10**(-9)*3.6*40*40*10**6*0.1
-          dataToInsert += "Kenya  SO_%i\t%i\t%f\n" % (objectId, year, ghi)
-          year=year+1
-
+           for m, line in totalannuallimit.iterrows():
+               tech = line['Technology']
+               cf = line[location]
+               dataToInsert += "%s\t%s_%i\t%i\t%f\n" % (region, tech, location, year, cf)
+           year = year + 1
     outPutFile = outPutFile[:startIndex] + dataToInsert + outPutFile[startIndex:]
+
     return(outPutFile)
 
-def inputact(outPutFile, inputactivity, startyear, endyear):
-    #reset
+def inputact(outPutFile, inputactivity, startyear, endyear, region, modeofoperation):
     dataToInsert = ""
     ###########################################################################
-    #Inputactivity ratio
+    #Inputactivity ratio (Region, technology, fuel, modeofoperation, year)
     ###########################################################################
     print("Input activity", datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
     param = "param InputActivityRatio default 0 :=\n"
@@ -198,19 +144,21 @@ def inputact(outPutFile, inputactivity, startyear, endyear):
 
     for j, row in inputactivity.iterrows():
        technology = row['Technology']
-       #print(technology)
        fuel = row['Fuel']
        inputactivityratio = row['Inputactivity']
        year = startyear
        while year<=endyear:
-          dataToInsert += "Kenya  %s\t%s\t1\t%i\t%f\n" % (technology, fuel, year, inputactivityratio)
-          year = year + 1
-       cnt = 1
-
+           i = 0
+           while i < len(modeofoperation):
+               k = modeofoperation[i]
+               dataToInsert += "%s\t%s\t%s\t%i\t%i\t%f\n" % (region, technology, fuel, k, year, inputactivityratio)
+               i += 1
+           year = year + 1
     outPutFile = outPutFile[:startIndex] + dataToInsert + outPutFile[startIndex:]
+    print(outPutFile)
     return (outPutFile)
-def SpecifiedDemandProfile(outPutFile, demand, demand_urban, demand_rural):
-    #reset
+
+def SpecifiedDemandProfile(outPutFile, demand, demand_urban, demand_rural, startyear, endyear,region, modeofoperation):
     dataToInsert = ""
     #########################################################################
     #SpecifiedDemandProfile (region,fuel,timeslice,year,profile)
@@ -222,7 +170,7 @@ def SpecifiedDemandProfile(outPutFile, demand, demand_urban, demand_rural):
 
     for j, row in demand.iterrows():
        elec_start = row['ElecStart']
-       #objectId = row['OBJECTID *']
+       #location = row['Location']
 
        if elec_start == 1:
           for k, row in demand_urban.iterrows():
@@ -244,7 +192,7 @@ def SpecifiedDemandProfile(outPutFile, demand, demand_urban, demand_rural):
     outPutFile = outPutFile[:startIndex] + dataToInsert + outPutFile[startIndex:]
     return(outPutFile)
 
-def capacityfactor_wi(elec, outPutFile, df, capacityfactor_wind, capacityfactor_solar, solar_power, wind_power, timesliceDN, timesliceDE, timesliceED, timesliceEN, timesliceNE, timesliceND, batteryCF, battery13h, battery8h, startyear, endyear, months):
+def capacityfactor_wi(elec, outPutFile, df, capacityfactor_wind, capacityfactor_solar, solar_power, wind_power, timesliceDN, timesliceDE, timesliceED, timesliceEN, timesliceNE, timesliceND, batteryCF, battery13h, battery8h, startyear, endyear, months,region, modeofoperation):
     dataToInsert = ""
     ###########################################################################
      #Capacityfactor (region,technolgy,timeslice,year,CF)
@@ -255,7 +203,7 @@ def capacityfactor_wi(elec, outPutFile, df, capacityfactor_wind, capacityfactor_
     ######### WIND ###########
 
     for k, row in df.iterrows():
-       ObjectId = row['OBJECTID *']
+       location = row['Location']
 
        year = startyear
        while year <= endyear:
@@ -271,23 +219,23 @@ def capacityfactor_wi(elec, outPutFile, df, capacityfactor_wind, capacityfactor_
              #print(sliceStart)
              #print(sliceEnd)
              ts = "%iD" % (m+1)
-             slice = sum(thisMonthOnly[ObjectId].between_time(sliceStart, sliceEnd))
+             slice = sum(thisMonthOnly[location].between_time(sliceStart, sliceEnd))
              average_wind = ((slice / len(thisMonthOnly.between_time(sliceStart, sliceEnd)._values))/wind_power)
-             dataToInsert += "Kenya  WI_%i\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
+             dataToInsert += "Kenya  WI_%i\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
 
              sliceStart = timesliceED
              sliceEnd = timesliceEN
              ts = "%iE" % (m+1)
-             slice = sum(thisMonthOnly[(ObjectId)].between_time(sliceStart, sliceEnd))
+             slice = sum(thisMonthOnly[(location)].between_time(sliceStart, sliceEnd))
              average_wind = ((slice / len(thisMonthOnly.between_time(sliceStart, sliceEnd)._values))/wind_power)
-             dataToInsert += "Kenya  WI_%i\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
+             dataToInsert += "Kenya  WI_%i\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
 
              sliceStart = timesliceNE
              sliceEnd = timesliceND
              ts = "%iN" % (m+1)
-             slice = sum(thisMonthOnly[(ObjectId)].between_time(sliceStart, sliceEnd)) # CHANGE 71 to actual OBJECTID!!!
+             slice = sum(thisMonthOnly[(location)].between_time(sliceStart, sliceEnd)) # CHANGE 71 to actual location!!!
              average_wind = ((slice / len(thisMonthOnly.between_time(sliceStart, sliceEnd)._values))/wind_power)
-             dataToInsert += "Kenya  WI_%i\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
+             dataToInsert += "Kenya  WI_%i\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
              m = m + 1
 
           while m ==11:
@@ -300,23 +248,23 @@ def capacityfactor_wi(elec, outPutFile, df, capacityfactor_wind, capacityfactor_
              sliceStart = timesliceDN
              sliceEnd = timesliceDE
              ts = "%iD" % (m + 1)
-             slice = sum(thisMonthOnly[(ObjectId)].between_time(sliceStart, sliceEnd))
+             slice = sum(thisMonthOnly[(location)].between_time(sliceStart, sliceEnd))
              average_wind = ((slice / len(thisMonthOnly.between_time(sliceStart, sliceEnd)._values))/wind_power)   #divided by capacity 600 kW
-             dataToInsert += "Kenya  WI_%i\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
+             dataToInsert += "Kenya  WI_%i\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
 
              sliceStart = timesliceED
              sliceEnd = timesliceEN
              ts = "%iE" % (m + 1)
-             slice = sum(thisMonthOnly[(ObjectId)].between_time(sliceStart, sliceEnd))
+             slice = sum(thisMonthOnly[(location)].between_time(sliceStart, sliceEnd))
              average_wind = ((slice / len(thisMonthOnly.between_time(sliceStart, sliceEnd)._values))/wind_power)   #divided by capacity 600 kW
-             dataToInsert += "Kenya  WI_%i\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
+             dataToInsert += "Kenya  WI_%i\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
 
              sliceStart = timesliceNE
              sliceEnd = timesliceND
              ts = "%iN" % (m + 1)
-             slice = sum(thisMonthOnly[(ObjectId)].between_time(sliceStart, sliceEnd))
+             slice = sum(thisMonthOnly[(location)].between_time(sliceStart, sliceEnd))
              average_wind = ((slice / len(thisMonthOnly.between_time(sliceStart, sliceEnd)._values))/wind_power)   #divided by capacity 600 kW
-             dataToInsert += "Kenya  WI_%i\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
+             dataToInsert += "Kenya  WI_%i\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
              m = m + 1
 
           year = year + 1
@@ -327,7 +275,7 @@ def capacityfactor_wi(elec, outPutFile, df, capacityfactor_wind, capacityfactor_
 
 def capacityfactor_PV(elec, outPutFile, df, capacityfactor_wind, capacityfactor_solar, solar_power, wind_power,
                             timesliceDN, timesliceDE, timesliceED, timesliceEN, timesliceNE, timesliceND, batteryCF,
-                            battery13h, battery8h, startyear, endyear,months):
+                            battery13h, battery8h, startyear, endyear,months,region, modeofoperation):
     dataToInsert = ""
 
     ######### Solar PV and MG ###############
@@ -339,7 +287,7 @@ def capacityfactor_PV(elec, outPutFile, df, capacityfactor_wind, capacityfactor_
     #capacityfactor_solar = capacityfactor_solar.drop(columns=['0'])
     #capacityfactor_solar.columns = pd.to_numeric(capacityfactor_solar.columns)
     for k, row in df.iterrows():
-       ObjectId = row['OBJECTID *']
+       location = row['Location']
        year = startyear
        while year <= endyear:
           m = 0
@@ -352,39 +300,39 @@ def capacityfactor_PV(elec, outPutFile, df, capacityfactor_wind, capacityfactor_
              sliceStart = timesliceDN
              sliceEnd = timesliceDE
              ts = "%iD" % (m + 1)
-             slice = sum(thisMonthOnly[(ObjectId)].between_time(sliceStart, sliceEnd))
+             slice = sum(thisMonthOnly[(location)].between_time(sliceStart, sliceEnd))
              try:
                  average_wind = ((slice / len(thisMonthOnly.between_time(sliceStart, sliceEnd)._values)) /solar_power)
              except ZeroDivisionError:
                  average_wind = 0
-             if ObjectId in elec.values:
-                dataToInsert += "Kenya  SOPV_%i_1\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
-             dataToInsert += "Kenya  SOPV_%i_0\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
-             dataToInsert += "Kenya  SOMG_%i\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
+             if location in elec.values:
+                dataToInsert += "Kenya  SOPV_%i_1\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
+             dataToInsert += "Kenya  SOPV_%i_0\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
+             dataToInsert += "Kenya  SOMG_%i\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
              sliceStart = timesliceED
              sliceEnd = timesliceEN
              ts = "%iE" % (m + 1)
-             slice = sum(thisMonthOnly[(ObjectId)].between_time(sliceStart, sliceEnd))
+             slice = sum(thisMonthOnly[(location)].between_time(sliceStart, sliceEnd))
              try:
                 average_wind = ((slice / len(thisMonthOnly.between_time(sliceStart, sliceEnd)._values)) /solar_power)
              except ZeroDivisionError:
                  average_wind = 0
-             if ObjectId in elec.values:
-                dataToInsert += "Kenya  SOPV_%i_1\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
-             dataToInsert += "Kenya  SOPV_%i_0\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
-             dataToInsert += "Kenya  SOMG_%i\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
+             if location in elec.values:
+                dataToInsert += "Kenya  SOPV_%i_1\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
+             dataToInsert += "Kenya  SOPV_%i_0\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
+             dataToInsert += "Kenya  SOMG_%i\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
              sliceStart = timesliceNE
              sliceEnd = timesliceND
              ts = "%iN" % (m + 1)
-             slice = sum(thisMonthOnly[(ObjectId)].between_time(sliceStart, sliceEnd))
+             slice = sum(thisMonthOnly[(location)].between_time(sliceStart, sliceEnd))
              try:
                 average_wind = ((slice / len(thisMonthOnly.between_time(sliceStart, sliceEnd)._values)) /solar_power)
              except ZeroDivisionError:
                  average_wind = 0
-             if ObjectId in elec.values:
-                dataToInsert += "Kenya  SOPV_%i_1\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
-             dataToInsert += "Kenya  SOPV_%i_0\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
-             dataToInsert += "Kenya  SOMG_%i\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
+             if location in elec.values:
+                dataToInsert += "Kenya  SOPV_%i_1\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
+             dataToInsert += "Kenya  SOPV_%i_0\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
+             dataToInsert += "Kenya  SOMG_%i\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
              m = m + 1
 
           while m == 11:
@@ -396,41 +344,41 @@ def capacityfactor_PV(elec, outPutFile, df, capacityfactor_wind, capacityfactor_
              sliceStart = timesliceDN
              sliceEnd = timesliceDE
              ts = "%iD" % (m + 1)
-             slice = sum(thisMonthOnly[(ObjectId)].between_time(sliceStart, sliceEnd))
+             slice = sum(thisMonthOnly[(location)].between_time(sliceStart, sliceEnd))
              try:
                 average_wind = ((slice / len(thisMonthOnly.between_time(sliceStart, sliceEnd)._values)) /solar_power)
              except ZeroDivisionError:
                  average_wind = 0
-             if ObjectId in elec.values:
-                dataToInsert += "Kenya  SOPV_%i_1\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
-             dataToInsert += "Kenya  SOPV_%i_0\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
-             dataToInsert += "Kenya  SOMG_%i\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
+             if location in elec.values:
+                dataToInsert += "Kenya  SOPV_%i_1\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
+             dataToInsert += "Kenya  SOPV_%i_0\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
+             dataToInsert += "Kenya  SOMG_%i\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
 
              sliceStart = timesliceED
              sliceEnd = timesliceEN
              ts = "%iE" % (m + 1)
-             slice = sum(thisMonthOnly[(ObjectId)].between_time(sliceStart, sliceEnd))
+             slice = sum(thisMonthOnly[(location)].between_time(sliceStart, sliceEnd))
              try:
                 average_wind = ((slice / len(thisMonthOnly.between_time(sliceStart, sliceEnd)._values)) / solar_power)
              except ZeroDivisionError:
                  average_wind = 0
-             if ObjectId in elec.values:
-                dataToInsert += "Kenya  SOPV_%i_1\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
-             dataToInsert += "Kenya  SOPV_%i_0\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
-             dataToInsert += "Kenya  SOMG_%i\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
+             if location in elec.values:
+                dataToInsert += "Kenya  SOPV_%i_1\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
+             dataToInsert += "Kenya  SOPV_%i_0\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
+             dataToInsert += "Kenya  SOMG_%i\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
 
              sliceStart = timesliceNE
              sliceEnd = timesliceND
              ts = "%iN" % (m + 1)
-             slice = sum(thisMonthOnly[(ObjectId)].between_time(sliceStart, sliceEnd))
+             slice = sum(thisMonthOnly[(location)].between_time(sliceStart, sliceEnd))
              try:
                 average_wind = ((slice / len(thisMonthOnly.between_time(sliceStart, sliceEnd)._values)) / solar_power)
              except ZeroDivisionError:
                  average_wind = 0
-             if ObjectId in elec.values:
-                dataToInsert += "Kenya  SOPV_%i_1\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
-             dataToInsert += "Kenya  SOPV_%i_0\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
-             dataToInsert += "Kenya  SOMG_%i\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
+             if location in elec.values:
+                dataToInsert += "Kenya  SOPV_%i_1\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
+             dataToInsert += "Kenya  SOPV_%i_0\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
+             dataToInsert += "Kenya  SOMG_%i\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
              m = m + 1
 
           year = year + 1
@@ -441,7 +389,7 @@ def capacityfactor_PV(elec, outPutFile, df, capacityfactor_wind, capacityfactor_
 
 def capacityfactor_solar_battery13h(elec, outPutFile, df, capacityfactor_wind, capacityfactor_solar, solar_power, wind_power,
                              timesliceDN, timesliceDE, timesliceED, timesliceEN, timesliceNE, timesliceND, batteryCF,
-                             battery13h, battery8h, startyear, endyear, months):
+                             battery13h, battery8h, startyear, endyear, months,region, modeofoperation):
     dataToInsert = ""
     ######### Solar 13h battery ###############
     print("Capacity factor solar PV & MG 13h", datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
@@ -454,11 +402,11 @@ def capacityfactor_solar_battery13h(elec, outPutFile, df, capacityfactor_wind, c
     batteryConsumed = False
     index = 0
     for k, row in df.iterrows():
-       ObjectId = row['OBJECTID *']
+       location = row['Location']
        lastRowWasZero = False
        batteryConsumed = False
        index = 0
-       for solarCapacity in capacityfactor_solar[ObjectId].values:
+       for solarCapacity in capacityfactor_solar[location].values:
           currentRowIsZero = solarCapacity == 0
           if not currentRowIsZero:
              # This will happen when the current row is not zero. We should "reset" everything.
@@ -473,12 +421,12 @@ def capacityfactor_solar_battery13h(elec, outPutFile, df, capacityfactor_wind, c
              batteryCapacityFactor = batteryCF
           elif solarCapacity == 0 and lastRowWasZero and not batteryConsumed:
              # This will happen when the last row was zero and the current row is 0.
-             capacityfactor_solar.at[index, ObjectId] = batteryCapacityFactor
+             capacityfactor_solar.at[index, location] = batteryCapacityFactor
              lastRowWasZero = True
              batteryTime -= 1
           elif not batteryConsumed:
              # This will happen when the last row was not zero and the current row is 0.
-             capacityfactor_solar.at[index, ObjectId] = batteryCapacityFactor
+             capacityfactor_solar.at[index, location] = batteryCapacityFactor
              lastRowWasZero = True
              batteryTime -= 1
           index += 1
@@ -487,8 +435,8 @@ def capacityfactor_solar_battery13h(elec, outPutFile, df, capacityfactor_wind, c
     #capacityfactor_solar = capacityfactor_solar.drop(columns=['0'])
     #capacityfactor_solar.columns = pd.to_numeric(capacityfactor_solar.columns)
     for k, row in df.iterrows():
-       ObjectId = row['OBJECTID *']
-       # print(ObjectId)
+       location = row['Location']
+       # print(location)
        year = startyear
        while year <= endyear:
           m = 0
@@ -503,35 +451,35 @@ def capacityfactor_solar_battery13h(elec, outPutFile, df, capacityfactor_wind, c
              sliceStart = timesliceDN
              sliceEnd = timesliceDE
              ts = "%iD" % (m + 1)
-             slice = sum(thisMonthOnly[(ObjectId)].between_time(sliceStart, sliceEnd))
+             slice = sum(thisMonthOnly[(location)].between_time(sliceStart, sliceEnd))
              average_wind = (
              (slice / len(thisMonthOnly.between_time(sliceStart, sliceEnd)._values)) / solar_power)
-             if ObjectId in elec.values:
-                dataToInsert += "Kenya  SOPV12h_%i_1\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
-             dataToInsert += "Kenya  SOPV12h_%i_0\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
-             dataToInsert += "Kenya  SOMG12h_%i\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
+             if location in elec.values:
+                dataToInsert += "Kenya  SOPV12h_%i_1\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
+             dataToInsert += "Kenya  SOPV12h_%i_0\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
+             dataToInsert += "Kenya  SOMG12h_%i\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
 
              sliceStart = timesliceED
              sliceEnd = timesliceEN
              ts = "%iE" % (m + 1)
-             slice = sum(thisMonthOnly[(ObjectId)].between_time(sliceStart, sliceEnd))
+             slice = sum(thisMonthOnly[(location)].between_time(sliceStart, sliceEnd))
              average_wind = (
              (slice / len(thisMonthOnly.between_time(sliceStart, sliceEnd)._values)) / solar_power)
-             if ObjectId in elec.values:
-                dataToInsert += "Kenya  SOPV12h_%i_1\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
-             dataToInsert += "Kenya  SOPV12h_%i_0\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
-             dataToInsert += "Kenya  SOMG12h_%i\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
+             if location in elec.values:
+                dataToInsert += "Kenya  SOPV12h_%i_1\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
+             dataToInsert += "Kenya  SOPV12h_%i_0\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
+             dataToInsert += "Kenya  SOMG12h_%i\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
 
              sliceStart = timesliceNE
              sliceEnd = timesliceND
              ts = "%iN" % (m + 1)
-             slice = sum(thisMonthOnly[(ObjectId)].between_time(sliceStart, sliceEnd))
+             slice = sum(thisMonthOnly[(location)].between_time(sliceStart, sliceEnd))
              average_wind = (
              (slice / len(thisMonthOnly.between_time(sliceStart, sliceEnd)._values)) / solar_power)
-             if ObjectId in elec.values:
-                dataToInsert += "Kenya  SOPV12h_%i_1\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
-             dataToInsert += "Kenya  SOPV12h_%i_0\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
-             dataToInsert += "Kenya  SOMG12h_%i\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
+             if location in elec.values:
+                dataToInsert += "Kenya  SOPV12h_%i_1\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
+             dataToInsert += "Kenya  SOPV12h_%i_0\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
+             dataToInsert += "Kenya  SOMG12h_%i\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
              m = m + 1
 
           while m == 11:
@@ -545,37 +493,37 @@ def capacityfactor_solar_battery13h(elec, outPutFile, df, capacityfactor_wind, c
              sliceStart = timesliceDN
              sliceEnd = timesliceDE
              ts = "%iD" % (m + 1)
-             slice = sum(thisMonthOnly[(ObjectId)].between_time(sliceStart, sliceEnd))
+             slice = sum(thisMonthOnly[(location)].between_time(sliceStart, sliceEnd))
              average_wind = (
              (slice / len(thisMonthOnly.between_time(sliceStart, sliceEnd)._values)) / solar_power)
-             if ObjectId in elec.values:
-                dataToInsert += "Kenya  SOPV12h_%i_1\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
-             dataToInsert += "Kenya  SOPV12h_%i_0\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
-             dataToInsert += "Kenya  SOMG12h_%i\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
+             if location in elec.values:
+                dataToInsert += "Kenya  SOPV12h_%i_1\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
+             dataToInsert += "Kenya  SOPV12h_%i_0\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
+             dataToInsert += "Kenya  SOMG12h_%i\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
 
              sliceStart = timesliceED
              sliceEnd = timesliceEN
              ts = "%iE" % (m + 1)
              slice = sum(
-                thisMonthOnly[(ObjectId)].between_time(sliceStart, sliceEnd))
+                thisMonthOnly[(location)].between_time(sliceStart, sliceEnd))
              average_wind = (
              (slice / len(thisMonthOnly.between_time(sliceStart, sliceEnd)._values)) / solar_power)
-             if ObjectId in elec.values:
-                dataToInsert += "Kenya  SOPV12h_%i_1\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
-             dataToInsert += "Kenya  SOPV12h_%i_0\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
-             dataToInsert += "Kenya  SOMG12h_%i\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
+             if location in elec.values:
+                dataToInsert += "Kenya  SOPV12h_%i_1\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
+             dataToInsert += "Kenya  SOPV12h_%i_0\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
+             dataToInsert += "Kenya  SOMG12h_%i\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
 
              sliceStart = timesliceNE
              sliceEnd = timesliceND
              ts = "%iN" % (m + 1)
              slice = sum(
-                thisMonthOnly[(ObjectId)].between_time(sliceStart, sliceEnd))
+                thisMonthOnly[(location)].between_time(sliceStart, sliceEnd))
              average_wind = (
              (slice / len(thisMonthOnly.between_time(sliceStart, sliceEnd)._values)) / solar_power)
-             if ObjectId in elec.values:
-                dataToInsert += "Kenya  SOPV12h_%i_1\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
-             dataToInsert += "Kenya  SOPV12h_%i_0\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
-             dataToInsert += "Kenya  SOMG12h_%i\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
+             if location in elec.values:
+                dataToInsert += "Kenya  SOPV12h_%i_1\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
+             dataToInsert += "Kenya  SOPV12h_%i_0\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
+             dataToInsert += "Kenya  SOMG12h_%i\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
              m = m + 1
 
           year = year + 1
@@ -585,7 +533,7 @@ def capacityfactor_solar_battery13h(elec, outPutFile, df, capacityfactor_wind, c
     return (outPutFile)
 def capacityfactor_solar_battery8h(elec, outPutFile, df, capacityfactor_wind, capacityfactor_solar, solar_power, wind_power,
                              timesliceDN, timesliceDE, timesliceED, timesliceEN, timesliceNE, timesliceND, batteryCF,
-                             battery13h, battery8h, startyear, endyear, months):
+                             battery13h, battery8h, startyear, endyear, months,region, modeofoperation):
    ######### Solar 8h battery ###############
     print("Capacity factor solar PV 8h", datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
     param = "param CapacityFactor default 1 :=\n"
@@ -593,14 +541,14 @@ def capacityfactor_solar_battery8h(elec, outPutFile, df, capacityfactor_wind, ca
     dataToInsert = ""
 
     for k, row in df.iterrows():
-       ObjectId = row['OBJECTID *']
+       location = row['Location']
 
        batteryCapacityFactor = batteryCF
        batteryTime = battery8h
        lastRowWasZero = False
        batteryConsumed = False
        index = 0
-       for solarCapacity in capacityfactor_solar[ObjectId].values:
+       for solarCapacity in capacityfactor_solar[location].values:
 
           currentRowIsZero = solarCapacity == 0
 
@@ -617,12 +565,12 @@ def capacityfactor_solar_battery8h(elec, outPutFile, df, capacityfactor_wind, ca
              batteryCapacityFactor = batteryCF
           elif solarCapacity == 0 and lastRowWasZero and not batteryConsumed:
              # This will happen when the last row was zero and the current row is 0.
-             capacityfactor_solar.at[index, ObjectId] = batteryCapacityFactor
+             capacityfactor_solar.at[index, location] = batteryCapacityFactor
              lastRowWasZero = True
              batteryTime -= 1
           elif not batteryConsumed:
              # This will happen when the last row was not zero and the current row is 0. Same as above???
-             capacityfactor_solar.at[index, ObjectId] = batteryCapacityFactor
+             capacityfactor_solar.at[index, location] = batteryCapacityFactor
              lastRowWasZero = True
              batteryTime -= 1
           index += 1
@@ -631,8 +579,8 @@ def capacityfactor_solar_battery8h(elec, outPutFile, df, capacityfactor_wind, ca
     capacityfactor_solar_batt_8 = capacityfactor_solar_batt_8.drop(columns=[0])
     #capacityfactor_solar.columns = pd.to_numeric(capacityfactor_solar.columns)
     for k, row in df.iterrows():
-       ObjectId = row['OBJECTID *']
-       # print(ObjectId)
+       location = row['Location']
+       # print(location)
        year = startyear
        while year <= endyear:
           m = 0
@@ -645,32 +593,32 @@ def capacityfactor_solar_battery8h(elec, outPutFile, df, capacityfactor_wind, ca
              sliceStart = timesliceDN
              sliceEnd = timesliceDE
              ts = "%iD" % (m + 1)
-             slice = sum(thisMonthOnly[(ObjectId)].between_time(sliceStart, sliceEnd))
+             slice = sum(thisMonthOnly[(location)].between_time(sliceStart, sliceEnd))
              average_wind = (
              (slice / len(thisMonthOnly.between_time(sliceStart, sliceEnd)._values)) / solar_power)
-             if ObjectId in elec.values:
-                dataToInsert += "Kenya  SOPV8h_%i_1\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
-             dataToInsert += "Kenya  SOPV8h_%i_0\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
+             if location in elec.values:
+                dataToInsert += "Kenya  SOPV8h_%i_1\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
+             dataToInsert += "Kenya  SOPV8h_%i_0\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
 
              sliceStart = timesliceED
              sliceEnd = timesliceEN
              ts = "%iE" % (m + 1)
-             slice = sum(thisMonthOnly[(ObjectId)].between_time(sliceStart, sliceEnd))
+             slice = sum(thisMonthOnly[(location)].between_time(sliceStart, sliceEnd))
              average_wind = (
              (slice / len(thisMonthOnly.between_time(sliceStart, sliceEnd)._values)) / solar_power)
-             if ObjectId in elec.values:
-                dataToInsert += "Kenya  SOPV8h_%i_1\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
-             dataToInsert += "Kenya  SOPV8h_%i_0\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
+             if location in elec.values:
+                dataToInsert += "Kenya  SOPV8h_%i_1\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
+             dataToInsert += "Kenya  SOPV8h_%i_0\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
 
              sliceStart = timesliceNE
              sliceEnd = timesliceND
              ts = "%iN" % (m + 1)
-             slice = sum(thisMonthOnly[(ObjectId)].between_time(sliceStart, sliceEnd))
+             slice = sum(thisMonthOnly[(location)].between_time(sliceStart, sliceEnd))
              average_wind = (
              (slice / len(thisMonthOnly.between_time(sliceStart, sliceEnd)._values)) / solar_power)
-             if ObjectId in elec.values:
-                dataToInsert += "Kenya  SOPV8h_%i_1\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
-             dataToInsert += "Kenya  SOPV8h_%i_0\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
+             if location in elec.values:
+                dataToInsert += "Kenya  SOPV8h_%i_1\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
+             dataToInsert += "Kenya  SOPV8h_%i_0\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
              m = m + 1
 
           while m == 11:
@@ -685,33 +633,33 @@ def capacityfactor_solar_battery8h(elec, outPutFile, df, capacityfactor_wind, ca
              sliceEnd = timesliceDE
              ts = "%iD" % (m + 1)
              slice = sum(
-                thisMonthOnly[(ObjectId)].between_time(sliceStart, sliceEnd))
+                thisMonthOnly[(location)].between_time(sliceStart, sliceEnd))
              average_wind = (
              (slice / len(thisMonthOnly.between_time(sliceStart, sliceEnd)._values)) / solar_power)
-             if ObjectId in elec.values:
-                dataToInsert += "Kenya  SOPV8h_%i_1\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
-             dataToInsert += "Kenya  SOPV8h_%i_0\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
+             if location in elec.values:
+                dataToInsert += "Kenya  SOPV8h_%i_1\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
+             dataToInsert += "Kenya  SOPV8h_%i_0\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
 
              sliceStart = timesliceED
              sliceEnd = timesliceEN
              ts = "%iE" % (m + 1)
              slice = sum(
-                thisMonthOnly[(ObjectId)].between_time(sliceStart, sliceEnd))
+                thisMonthOnly[(location)].between_time(sliceStart, sliceEnd))
              average_wind = (
              (slice / len(thisMonthOnly.between_time(sliceStart, sliceEnd)._values)) / solar_power)
-             if ObjectId in elec.values:
-                dataToInsert += "Kenya  SOPV8h_%i_1\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
-             dataToInsert += "Kenya  SOPV8h_%i_0\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
+             if location in elec.values:
+                dataToInsert += "Kenya  SOPV8h_%i_1\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
+             dataToInsert += "Kenya  SOPV8h_%i_0\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
 
              sliceStart = timesliceNE
              sliceEnd = timesliceND
              ts = "%iN" % (m + 1)
              slice = sum(
-                thisMonthOnly[(ObjectId)].between_time(sliceStart, sliceEnd))
+                thisMonthOnly[(location)].between_time(sliceStart, sliceEnd))
              average_wind = ((slice / len(thisMonthOnly.between_time(sliceStart, sliceEnd)._values)) / solar_power)
-             if ObjectId in elec.values:
-                dataToInsert += "Kenya  SOPV8h_%i_1\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
-             dataToInsert += "Kenya  SOPV8h_%i_0\t%s\t%i\t%f\n" % (ObjectId, ts, year, average_wind)
+             if location in elec.values:
+                dataToInsert += "Kenya  SOPV8h_%i_1\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
+             dataToInsert += "Kenya  SOPV8h_%i_0\t%s\t%i\t%f\n" % (location, ts, year, average_wind)
              m = m + 1
 
           year = year + 1
@@ -721,7 +669,7 @@ def capacityfactor_solar_battery8h(elec, outPutFile, df, capacityfactor_wind, ca
     outPutFile = outPutFile[:startIndex] + dataToInsert + outPutFile[startIndex:]
     return (outPutFile)
 
-def outputactivity(outPutFile, df):
+def outputactivity(outPutFile, df,region, modeofoperation):
     #reset
     dataToInsert = ""
     ###########################################################################
@@ -748,7 +696,7 @@ def outputactivity(outPutFile, df):
 
     #reset
 
-def specifiedannualdemand(outPutFile, demand):
+def specifiedannualdemand(outPutFile, demand,region, modeofoperation):
     #########################################################################
     #SpecifiedAnnualDemand (region,fuel,year,demand)
     ########################################################################
@@ -760,117 +708,43 @@ def specifiedannualdemand(outPutFile, demand):
     for j, row in demand.iterrows():
        year = startyear
        while year<=endyear:
-          demandForThisYearAndObjectId = demand.loc[j][year]
-          dataToInsert += "Kenya  EL3_%s\t%i\t%f\n" % (j, year, demandForThisYearAndObjectId)
+          demandForThisYearAndlocation = demand.loc[j][year]
+          dataToInsert += "Kenya  EL3_%s\t%i\t%f\n" % (j, year, demandForThisYearAndlocation)
           year = year + 1
     cnt = 1
 
     outPutFile = outPutFile[:startIndex] + dataToInsert + outPutFile[startIndex:]
     return(outPutFile)
-    #reset
 
-def fixedcost(df, outPutFile,startyear, endyear, elec):
-    ##############################################################
-    #Fixed cost (Region,Technology,Year,Fixedcost)
-    ################################################################
-    print("Fixed cost", datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
-    param = "param FixedCost default 0 :=\n"
-    startIndex = outPutFile.index(param) + len(param)
+def capitalcost_dynamic(df, outPutFile, capitalcost_RET, capacityfactor_wind, capacityfactor_solar, startyear, endyear, region):
     dataToInsert = ""
-    #print(startIndex)
-
-    for m, row in df.iterrows():
-       objectId = row['OBJECTID *']
-       cont = 1
-
-       year = startyear
-       # add for each year for one technology, total energy avaliable in each cell
-       while year <= endyear:
-          windfixedcost = float(row['FixedCostWind'])
-          #\t gives tab
-          dataToInsert += "Kenya  WI_%i\t%i\t%f\n" % (objectId, year, windfixedcost)
-          year += 1
-       year2 = startyear
-
-       if objectId in elec.values:
-          while year2 <= endyear:
-             pvfixedcost = float(row['FixedCostPV'])
-             dataToInsert += ("Kenya  SOPV_%i_1\t%i\t%f\n" % (objectId, year2, pvfixedcost))
-             year2 = year2 + 1
-          year2 = startyear
-          while year2 <= endyear:
-             pvfixedcost = float(row['FixedCostPV4h'])
-             dataToInsert += ("Kenya  SOPV12h_%i_1\t%i\t%f\n" % (objectId, year2, pvfixedcost))
-             year2 = year2 + 1
-          year2 = startyear
-          while year2 <= endyear:
-             pvfixedcost = float(row['FixedCostPV8h'])
-             dataToInsert += ("Kenya  SOPV8h_%i_1\t%i\t%f\n" % (objectId, year2, pvfixedcost))
-             year2 = year2 + 1
-
-       while year2 <= endyear:
-          pvfixedcost = float(row['FixedCostPV'])
-          dataToInsert += ("Kenya  SOPV_%i_0\t%i\t%f\n" % (objectId, year2, pvfixedcost))
-          year2 = year2 + 1
-       year2=startyear
-       while year2 <= endyear:
-          pvfixedcost = float(row['FixedCostPV4h'])
-          dataToInsert += ("Kenya  SOPV12h_%i_0\t%i\t%f\n" % (objectId, year2, pvfixedcost))
-          year2 = year2 + 1
-       year2 = startyear
-       while year2 <= endyear:
-          pvfixedcost = float(row['FixedCostPV8h'])
-          dataToInsert += ("Kenya  SOPV8h_%i_0\t%i\t%f\n" % (objectId, year2, pvfixedcost))
-          year2 = year2 + 1
-       year3 = startyear
-       while year3 <= endyear:
-          somgfixedcost = float(row['FixedCostSOMG'])
-          dataToInsert += ("Kenya  SOMG_%i\t%i\t%f\n" % (objectId, year3, somgfixedcost))
-          dataToInsert += ("Kenya  SOMG12h_%i\t%i\t%f\n" % (objectId, year3, somgfixedcost))
-          year3 = year3 + 1
-       while year3 <= endyear:
-          somgfixedcost = 15
-          dataToInsert += ("Kenya  KEDSGEN_%i\t%i\t%f\n" % (objectId, year3, somgfixedcost))
-          year3 = year3 + 1
-
-    outPutFile = outPutFile[:startIndex] + dataToInsert + outPutFile[startIndex:]
-    return (outPutFile)
-def capitalcost(df, outPutFile, elec, capitalcost_RET, trade_cost, wind_power, solar_power, capacityfactor_wind, capacityfactor_solar,startyear, endyear):
-    dataToInsert = ""
-
-     #################################################################
+    ##################################################################
     #Capital cost (region,technology,year,capitalcost)
-    ################################################################
-    print("Capital cost", datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+    ##################################################################
+    print("Capital cost dynamic cost", datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
     param = "param CapitalCost default 0 :=\n"
     startIndex = outPutFile.index(param) + len(param)
-
-    PV_MG_CF = [0.12, 0.14,0.155,0.17,0.20]
-    PV_SA_CF = [0.13,0.15, 0.16,0.18, 0.21]
-    Wind_CF = [0.48,0.47,0.45,0.44,0.41,0.37,0.31,0.25,0.19,0.125]
-    Battery = [8,13]
-
-    windcf_year = pd.capacityfactor_wind
-    print(windcf_year)
-
-
-    solarcf_year = []
-    slice = sum(capacityfactor_solar[(ObjectId)])
-    average_solar = ((slice / len(capacityfactor_solar._values)) / solar_power)
+    Wind_CF = capitalcost_RET['CF']
 
     for m, row in df.iterrows():
-       ObjectId = row['OBJECTID *']
+       location = row['Location']
+       slice_wind = sum(capacityfactor_wind[(location)])
+       average_wind = ((slice_wind/len(capacityfactor_wind._values)))
+       print(average_wind)
+       print(capacityfactor_solar['date'])
+       capacityfactor_solar.index = capacityfactor_solar['date']
+       slice_solar = sum(capacityfactor_solar.iloc[location])
+       average_solar = ((slice_solar/len(capacityfactor_solar._values)))
        year = startyear
        while year <= endyear:
-
           def find_nearest(Wind_CF, average_wind):
              arraywind = np.asarray(Wind_CF)
              idx = (np.abs(arraywind - average_wind)).argmin()
              return arraywind[idx]
           cf=find_nearest(Wind_CF, average_wind)
+          capitalcost_RET.index = capitalcost_RET['CF']
           windcapitalcost = capitalcost_RET.loc[cf][year]
-          #windcapitalcost = float(row['CapitalCostWind'])
-          dataToInsert += "Kenya  WI_%i\t%i\t%f\n" % (ObjectId, year, windcapitalcost)
+          dataToInsert += "%s\t%s_%i\t%i\t%f\n" % (region, tech, location, year, windcapitalcost)
           year += 1
        year2 = startyear
        while year2 <= endyear:
@@ -883,13 +757,13 @@ def capitalcost(df, outPutFile, elec, capitalcost_RET, trade_cost, wind_power, s
           cf=find_nearest(PV_SA_CF, average_solar)
           pvcapitalcost = capitalcost_RET.loc[cf][year2]
           #pvcapitalcost = float(row['CapitalCostPV'])
-          if ObjectId in elec.values:
-              dataToInsert += ("Kenya  SOPV_%i_1\t%i\t%f\n" % (ObjectId, year2, pvcapitalcost))
-          dataToInsert += ("Kenya  SOPV_%i_0\t%i\t%f\n" % (ObjectId, year2, pvcapitalcost))
+          if location in elec.values:
+              dataToInsert += ("Kenya  SOPV_%i_1\t%i\t%f\n" % (location, year2, pvcapitalcost))
+          dataToInsert += ("Kenya  SOPV_%i_0\t%i\t%f\n" % (location, year2, pvcapitalcost))
           year2 = year2 + 1
        year3 = startyear
        while year3 <= endyear:
-          slice = sum(capacityfactor_solar[(ObjectId)])
+          slice = sum(capacityfactor_solar[(location)])
           average_solar = ((slice / len(capacityfactor_solar._values)) / solar_power)
           #print(average_solar)
           def find_nearest(PV_MG_CF, average_solar):
@@ -901,12 +775,12 @@ def capitalcost(df, outPutFile, elec, capitalcost_RET, trade_cost, wind_power, s
           somgcapitalcost = capitalcost_RET.loc[cf][year3]
           somg12hcapitalcost = capitalcost_RET.loc[cf][year3] + capitalcost_RET.loc[13][year3]
           #somgcapitalcost = float(row['CapitalCostSOMG'])
-          dataToInsert += ("Kenya  SOMG_%i\t%i\t%f\n" % (ObjectId, year3, somgcapitalcost))
-          dataToInsert += ("Kenya  SOMG12h_%i\t%i\t%f\n" % (ObjectId, year3, somg12hcapitalcost))
+          dataToInsert += ("Kenya  SOMG_%i\t%i\t%f\n" % (location, year3, somgcapitalcost))
+          dataToInsert += ("Kenya  SOMG12h_%i\t%i\t%f\n" % (location, year3, somg12hcapitalcost))
           year3 = year3 + 1
        year3 = startyear
        while year3 <= endyear:
-          slice = sum(capacityfactor_solar[(ObjectId)])
+          slice = sum(capacityfactor_solar[(location)])
           average_solar = ((slice / len(capacityfactor_solar._values)) / solar_power)
           #print(average_solar)
           def find_nearest(PV_SA_CF, average_solar):
@@ -918,13 +792,13 @@ def capitalcost(df, outPutFile, elec, capitalcost_RET, trade_cost, wind_power, s
           sopv4hcapitalcost = capitalcost_RET.loc[cf][year3]+capitalcost_RET.loc[13][year3]
 
           #somgcapitalcost = float(row['CapitalCostPV4h'])
-          if ObjectId in elec.values:
-              dataToInsert += ("Kenya  SOPV12h_%i_1\t%i\t%f\n" % (ObjectId, year3, sopv4hcapitalcost))
-          dataToInsert += ("Kenya  SOPV12h_%i_0\t%i\t%f\n" % (ObjectId, year3, sopv4hcapitalcost))
+          if location in elec.values:
+              dataToInsert += ("Kenya  SOPV12h_%i_1\t%i\t%f\n" % (location, year3, sopv4hcapitalcost))
+          dataToInsert += ("Kenya  SOPV12h_%i_0\t%i\t%f\n" % (location, year3, sopv4hcapitalcost))
           year3 = year3 + 1
        year3 = startyear
        while year3 <= endyear:
-          slice = sum(capacityfactor_solar[(ObjectId)])
+          slice = sum(capacityfactor_solar[(location)])
           average_solar = ((slice / len(capacityfactor_solar._values)) / solar_power)
           #print(average_solar)
           def find_nearest(PV_SA_CF, average_solar):
@@ -935,12 +809,23 @@ def capitalcost(df, outPutFile, elec, capitalcost_RET, trade_cost, wind_power, s
           cf=find_nearest(PV_SA_CF, average_solar)
           sopv8hcapitalcost = capitalcost_RET.loc[cf][year3]+capitalcost_RET.loc[8][year3]
           #somgcapitalcost = float(row['CapitalCostPV8h'])
-          if ObjectId in elec.values:
-              dataToInsert += ("Kenya  SOPV8h_%i_1\t%i\t%f\n" % (ObjectId, year3, sopv8hcapitalcost))
-          dataToInsert += ("Kenya  SOPV8h_%i_0\t%i\t%f\n" % (ObjectId, year3, sopv8hcapitalcost))
+          if location in elec.values:
+              dataToInsert += ("Kenya  SOPV8h_%i_1\t%i\t%f\n" % (location, year3, sopv8hcapitalcost))
+          dataToInsert += ("Kenya  SOPV8h_%i_0\t%i\t%f\n" % (location, year3, sopv8hcapitalcost))
           year3 = year3 + 1
-     #### TRADE XYYX ######
 
+    outPutFile = outPutFile[:startIndex] + dataToInsert + outPutFile[startIndex:]
+    return(outPutFile)
+
+def capitalcost(df, outPutFile, trade_cost, startyear, endyear,region, modeofoperation):
+    dataToInsert = ""
+
+     #################################################################
+    #Capital cost (region,technology,year,capitalcost)
+    ################################################################
+    print("Capital cost", datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+    param = "param CapitalCost default 0 :=\n"
+    startIndex = outPutFile.index(param) + len(param)
 
     for m, row in trade_cost.iterrows():
       cost = row['Capitalcost']
@@ -958,7 +843,7 @@ def capitalcost(df, outPutFile, elec, capitalcost_RET, trade_cost, wind_power, s
 #################################################
 #CapacityToActivityUnit (region,technology,capacitytoactivityunit)
 #################################################
-def capacitytoactivity(trade,outPutFile):
+def capacitytoactivity(trade,outPutFile,region, modeofoperation):
     dataToInsert = ""
     print("Capacity to activity", datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
     param = "param CapacityToActivityUnit default 1 :=\n"
