@@ -2,7 +2,7 @@ import unittest
 import os
 import io
 import sys
-sys.path.insert(1, '../')
+#sys.path.insert(1, '../')
 from build_data_file import *
 
 class ImportTestCase(unittest.TestCase):
@@ -174,24 +174,64 @@ class ImportTestCase(unittest.TestCase):
         test = "region\tWI_5\t1\t2025\t5.000000\n"
         assert test in outPutFile
 
-    # def test_specifieddemandprofile_EL3_10E_is_0_01756(self):
-    #     paths = os.path.join(os.getcwd(), 'tests','data')
-    #     dict_df = load_csvs(paths)
-    #     path = os.path.join(os.getcwd(), 'tests','osemosys_shell_param.txt')
-    #     outPutFile = make_outputfile(path)
-    #     outPutFile = SpecifiedDemandProfile(outPutFile, dict_df['demandprofile'], dict_df['input_data'])
-    #     test = "region\tEL3\t10E\t2025\t0.01756\n"
-    #     assert test in outPutFile
+    def test_specifieddemandprofile_EL3_10E_is_0_01756(self):
+        paths = os.path.join(os.getcwd(), 'tests','data')
+        dict_df = load_csvs(paths)
+        path = os.path.join(os.getcwd(), 'tests','osemosys_shell_param.txt')
+        outPutFile = make_outputfile(path)
+        outPutFile = SpecifiedDemandProfile(outPutFile, dict_df['demandprofile'], dict_df['input_data'])
+        test = "region\tEL3\t10E\t2025\t0.017560\n"
+        assert test in outPutFile
 
-    # def test_capacityfactor_solar_battery_SOPV_8h_3_should_be(self):
-    #     paths = os.path.join(os.getcwd(), 'tests','data')
-    #     dict_df = load_csvs(paths)
-    #     path = os.path.join(os.getcwd(), 'tests','osemosys_shell_param.txt')
-    #     outPutFile = make_outputfile(path)
-    #     outPutFile = capacityfactor_solar_battery(elec, outPutFile, dict_df['GIS_data'],
-    #                                            dict_df['capacityfactor_solar'], dict_df['input_data'],
-    #                                            dict_df['capitalcost_RET'], startyear, endyear, months, region)
-    #     test = "region\tSOPV_8h_3\t2025\t1D\t5109.867698\n"
-    #     assert test in outPutFile
+    def test_capacityfactor_solar_battery_SOPV_8h_3_1E_should_be_0_721543(self):
+        paths = os.path.join(os.getcwd(), 'tests','data')
+        dict_df = load_csvs(paths)
+        path = os.path.join(os.getcwd(), 'tests','osemosys_shell_param.txt')
+        outPutFile = make_outputfile(path)
+        outPutFile = capacityfactor(outPutFile, dict_df['GIS_data'],
+                                               dict_df['battery'], dict_df['input_data'], dict_df['capacityfactor_wind'], dict_df['capacityfactor_solar'])
+        test = "region\tSOPV_8h_3\t1E\t2025\t0.721543\n"
+        assert test in outPutFile
+
+    def test_capacityfactor_solar_SOPV_5_should_be_0(self):
+        paths = os.path.join(os.getcwd(), 'tests','data')
+        dict_df = load_csvs(paths)
+        path = os.path.join(os.getcwd(), 'tests','osemosys_shell_param.txt')
+        outPutFile = make_outputfile(path)
+        outPutFile = capacityfactor(outPutFile, dict_df['GIS_data'],
+                                               dict_df['battery'], dict_df['input_data'], dict_df['capacityfactor_wind'], dict_df['capacityfactor_solar'])
+        test = "region\tSOPV_5\t1N\t2030\t0.000000\n"
+        assert test in outPutFile
+
+    def test_capacityfactor_solar_SOPV_2_should_be_0_402357(self):
+        paths = os.path.join(os.getcwd(), 'tests','data')
+        dict_df = load_csvs(paths)
+        path = os.path.join(os.getcwd(), 'tests','osemosys_shell_param.txt')
+        outPutFile = make_outputfile(path)
+        outPutFile = capacityfactor(outPutFile, dict_df['GIS_data'],
+                                               dict_df['battery'], dict_df['input_data'], dict_df['capacityfactor_wind'], dict_df['capacityfactor_solar'])
+        test = "region\tSOPV_2\t1D\t2030\t0.402357\n"
+        assert test in outPutFile
+
+    def test_capacityfactor_solar_WI_5_should_be_0_0471504(self):
+        paths = os.path.join(os.getcwd(), 'tests','data')
+        dict_df = load_csvs(paths)
+        path = os.path.join(os.getcwd(), 'tests','osemosys_shell_param.txt')
+        outPutFile = make_outputfile(path)
+        outPutFile = capacityfactor(outPutFile, dict_df['GIS_data'],
+                                               dict_df['battery'], dict_df['input_data'], dict_df['capacityfactor_wind'], dict_df['capacityfactor_solar'])
+        test = "region\tWI_5\t1N\t2030\t0.045699\n"
+        assert test in outPutFile
+
+    def test_capacityfactor_solar_WI_13h_5_should_be_0_0471504(self):
+        paths = os.path.join(os.getcwd(), 'tests','data')
+        dict_df = load_csvs(paths)
+        path = os.path.join(os.getcwd(), 'tests','osemosys_shell_param.txt')
+        outPutFile = make_outputfile(path)
+        outPutFile = capacityfactor(outPutFile, dict_df['GIS_data'],
+                                               dict_df['battery'], dict_df['input_data'], dict_df['capacityfactor_wind'], dict_df['capacityfactor_solar'])
+        test = "region\tWI_13h_5\t1N\t2020\t0.061989\n"
+        assert test in outPutFile
+
 if __name__ == '__main__':
     unittest.main()
